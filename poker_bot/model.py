@@ -1,4 +1,4 @@
-from card_utils import Card
+from card_utils import Card, evaluate
 from game_state import GameStateView
 from player_action import PlayerAction
 
@@ -25,6 +25,25 @@ class Model:
         """
         self.hand = hand
         self.player_id = player_id
+
+    def Win(
+        self,
+        community_cards: list[Card],
+        opponent_hole_cards: tuple[Card, Card],
+    ) -> float:
+        """Compare the best hands available from the current cards."""
+        if len(community_cards) != 5:
+            raise ValueError("community_cards must contain exactly 5 cards")
+        if len(self.hand) != 2 or len(opponent_hole_cards) != 2:
+            raise ValueError("each player must have exactly two hole cards")
+
+        model_rank = evaluate([*self.hand, *community_cards])
+        opponent_rank = evaluate([*opponent_hole_cards, *community_cards])
+        if model_rank > opponent_rank:
+            return 1
+        if model_rank == opponent_rank:
+            return 0.5
+        return 0
 
     def run(
         self, actions: list[PlayerAction], game_state: GameStateView
