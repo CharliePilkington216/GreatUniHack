@@ -1,6 +1,6 @@
-from card_utils import Card, evaluate
+from card_utils import Card, evaluate, full_deck
 from game_state import GameStateView
-from player_action import PlayerAction
+from player_action import DEALER, PlayerAction
 
 
 class Model:
@@ -16,6 +16,8 @@ class Model:
         # about other teams, by game_state.teams), here.
         self.hand = []
         self.player_id = None
+        self.deck = full_deck()
+        self.removed_cards = set()
 
     def seed(self, hand: list[Card], player_id: int):
         """
@@ -23,19 +25,30 @@ class Model:
 
         Store them; run() is not given them again.
         """
+        self.deck = full_deck()
+        self.removed_cards = hand
+        
         self.hand = hand
         self.player_id = player_id
 
-    def Win(
+    def remove_cards(self, cards: list[Card]):
+        for c in cards:
+            card_key = (c.rank, c.suit)
+            if card_key in self.removed_cards:
+                continue
+            for i in range(len(self.deck)):
+                newC = self.deck[i]
+                if newC.rank == c.rank and newC.suit == c.suit:
+                    del self.deck[i]
+                    self.removed_cards.add(card_key)
+                    break
+
+    def win(
         self,
         community_cards: list[Card],
         opponent_hole_cards: tuple[Card, Card],
     ) -> float:
         """Compare the best hands available from the current cards."""
-        if len(community_cards) != 5:
-            raise ValueError("community_cards must contain exactly 5 cards")
-        if len(self.hand) != 2 or len(opponent_hole_cards) != 2:
-            raise ValueError("each player must have exactly two hole cards")
 
         model_rank = evaluate([*self.hand, *community_cards])
         opponent_rank = evaluate([*opponent_hole_cards, *community_cards])
@@ -58,6 +71,15 @@ class Model:
             game_state.call_amount, game_state.status(self.player_id),
             game_state.min_raise_to.
         """
+
+        self.remove_cards([
+            action.card
+            for action in actions
+            if action.kind == "reveal_card"
+            and action.player_id == DEALER
+            and action.card is not None
+        ])
+
         return PlayerAction.call(self.player_id)
 
 
